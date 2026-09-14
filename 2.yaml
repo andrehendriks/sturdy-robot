@@ -1,0 +1,197 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquidsoap-config
+  namespace: airadio
+data:
+  board-endpoint: "http://your-sl-board-endpoint.com/update"
+  radio.liq: |
+    # Allow running as root
+    settings.init.allow_root := true
+    
+    # Liquidsoap Radio Configuration
+    settings.server.telnet := true
+    settings.server.telnet.bind_addr := "0.0.0.0"
+    settings.server.telnet.port := 1234
+    settings.log.stdout := true
+    
+    # Only pass playable audio files to the directory playlist. The NAS music
+    # tree also contains album artwork and Windows metadata files.
+    def playable_audio(r) =
+      list.mem(
+        file.extension(request.uri(r)),
+        [".mp3", ".m4a", ".aac", ".ogg", ".flac", ".wav"]
+      )
+    end
+
+    music_source = mksafe(
+      playlist(
+        check_next=playable_audio,
+        reload_mode="watch",
+        "/radio/music/Music"
+      )
+    )
+    
+    # Output music to Icecast at /live mount
+    output.icecast(
+      %mp3,
+      host = "192.168.2.5",
+      port = 8030,
+      user = "source",
+      password = "sourcepass",
+      mount = "/live",
+      name = "AI Radio",
+      description = "AI-powered radio stream",
+      genre = "Funk; Blues; Classic-Rock; Hip hop; HardStyle;",
+      url = "http://77.171.138.127:8030/live",
+      music_source
+    )
+    
+    # DJ relay from Mixxx source at http://192.168.2.5:8030/Dj
+    dj_source = mksafe(input.http("http://192.168.2.5:8030/Dj"))
+    
+    # Log metadata whenever it changes
+    def log_metadata(m) =
+      title = m["title"]
+      artist = m["artist"]
+      if (title != "" and artist != "") then
+        log("DJ TRACK: #{artist} - #{title}")
+      end
+    end
+    
+    dj_source = source.on_metadata(dj_source, log_metadata)
+    
+    # Output DJ stream to Icecast at /dj-sl mount with metadata
+    output.icecast(
+      %mp3(bitrate=128),
+      host = "192.168.2.5",
+      port = 8030,
+      user = "source",
+      password = "sourcepass",
+      mount = "/dj-sl",
+      name = "Andreas Groove Live",
+      description = "Live DJ stream",
+      genre = "Funk; Blues; Classic-Rock; Hip hop; HardStyle;",
+      url = "http://77.171.138.127:8030/dj-sl",
+      dj_source
+    )
+    
+    log("Liquidsoap streaming to Icecast - music at /live, DJ at /dj-sl")
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liquidsoap
+  namespace: airadio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: liquidsoap
+  template:
+    metadata:
+      labels:
+        app: liquidsoap
+    spec:
+      containers:
+      - name: liquidsoap
+        image: savonet/liquidsoap:v2.3.3
+        command: 
+        - bash
+        - -c
+        - |
+          set -eu
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cifs-utils
+          mkdir -p /radio/music
+          printf 'username=%s\npassword=%s\n' "$NAS_SMB_USERNAME" "$NAS_SMB_PASSWORD" \
+            > /run/radio-music-smb-credentials
+          chmod 600 /run/radio-music-smb-credentials
+          mount -t cifs //192.168.2.5/Dj /radio/music \
+            -o credentials=/run/radio-music-smb-credentials,vers=3.0,ro,uid=0,gid=0
+          rm -f /run/radio-music-smb-credentials
+          exec liquidsoap /etc/liquidsoap/radio.liq 2>&1 | tee /var/log/liquidsoap.log
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        env:
+        - name: NAS_SMB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: radio-music-smb
+              key: username
+        - name: NAS_SMB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: radio-music-smb
+              key: password
+        - name: BOARD_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: liquidsoap-config
+              key: board-endpoint
+              optional: true
+        volumeMounts:
+        - name: config
+          mountPath: /etc/liquidsoap
+        - name: music
+          mountPath: /radio/music
+        - name: logs
+          mountPath: /var/log
+        ports:
+        - containerPort: 1234
+          name: telnet
+        livenessProbe:
+          tcpSocket:
+            port: telnet
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      - name: track-broadcaster
+        image: alpine:3.20
+        command:
+        - sh
+        - -c
+        - |
+          apk add --no-cache bash curl
+          while true; do
+            if [ -f /var/log/liquidsoap.log ]; then
+              tail -f /var/log/liquidsoap.log | while read line; do
+                if echo "$line" | grep -q "DJ TRACK:"; then
+                  artist=$(echo "$line" | sed -n 's/.*DJ TRACK: \([^ ]*\) - \(.*\)/\1/p')
+                  title=$(echo "$line" | sed -n 's/.*DJ TRACK: \([^ ]*\) - \(.*\)/\2/p')
+                  if [ -n "$artist" ] && [ -n "$title" ]; then
+                    echo "[$(date)] Sending: $artist - $title"
+                    curl -s -X POST "${BOARD_ENDPOINT}" \
+                      -H "Content-Type: application/json" \
+                      -d "{\"artist\":\"$artist\",\"title\":\"$title\",\"stream\":\"dj-sl\"}" \
+                      -m 5 || true
+                  fi
+                fi
+              done
+            fi
+            sleep 5
+          done
+        env:
+        - name: BOARD_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: liquidsoap-config
+              key: board-endpoint
+              optional: true
+        volumeMounts:
+        - name: logs
+          mountPath: /var/log
+        resources:
+          limits:
+            memory: 64Mi
+          requests:
+            memory: 32Mi
+      volumes:
+      - name: config
+        configMap:
+          name: liquidsoap-config
+      - name: music
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}

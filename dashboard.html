@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎵 AI Radio Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+    .header p { font-size: 0.95em; opacity: 0.9; }
+    .content { padding: 30px; }
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+    .section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.3em;
+    }
+    .now-playing {
+      background: white;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+    }
+    .track-title { font-size: 1.3em; color: #333; font-weight: bold; }
+    .track-artist { color: #999; font-size: 0.95em; margin-top: 5px; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button:hover {
+      background: #764ba2;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    button:active { transform: translateY(0); }
+    .btn-skip { background: #ff6b6b; }
+    .btn-skip:hover { background: #ff5252; }
+    .btn-secondary { background: #51cf66; }
+    .btn-secondary:hover { background: #40c057; }
+    .stream-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 15px 0;
+    }
+    .info-box {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .info-label { color: #999; font-size: 0.9em; }
+    .info-value { color: #333; font-weight: bold; font-size: 1.1em; margin-top: 5px; }
+    select, input {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1em;
+      width: 100%;
+      max-width: 300px;
+    }
+    .playlist-list {
+      background: white;
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+    }
+    .playlist-item {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .playlist-item:hover { background: #f8f9fa; }
+    .playlist-item:last-child { border-bottom: none; }
+    .status {
+      text-align: center;
+      padding: 15px;
+      background: #d4edda;
+      color: #155724;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 300px;
+    }
+    input[type="range"] { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎵 AI Radio Dashboard</h1>
+      <p>Your AI-powered streaming station</p>
+    </div>
+    
+    <div class="content">
+      <!-- Now Playing -->
+      <div class="section">
+        <h2>Now Playing</h2>
+        <div class="now-playing">
+          <div class="track-title" id="trackTitle">Loading...</div>
+          <div class="track-artist" id="trackArtist">Waiting for stream</div>
+        </div>
+      </div>
+
+      <!-- Stream Info -->
+      <div class="section">
+        <h2>Stream Information</h2>
+        <div class="stream-info">
+          <div class="info-box">
+            <div class="info-label">Stream URL</div>
+            <div class="info-value">192.168.2.5:8030/live</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Format</div>
+            <div class="info-value">MP3 128kbps</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Status</div>
+            <div class="info-value" id="streamStatus">🟢 LIVE</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Listeners</div>
+            <div class="info-value" id="listenerCount">Connected</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Controls -->
+      <div class="section">
+        <h2>Player Controls</h2>
+        <div class="controls">
+          <button onclick="playPause()">▶️ Play / Pause</button>
+          <button onclick="nextTrack()" class="btn-skip">⏭️ Next Track</button>
+          <button onclick="prevTrack()" class="btn-skip">⏮️ Previous</button>
+          <button onclick="stopStream()" class="btn-secondary">⏹️ Stop</button>
+        </div>
+        
+        <div class="volume-control">
+          <label>🔊 Volume:</label>
+          <input type="range" min="0" max="100" value="70" onchange="setVolume(this.value)">
+          <span id="volumeDisplay">70%</span>
+        </div>
+      </div>
+
+      <!-- Playlist Selection -->
+      <div class="section">
+        <h2>Select Playlist</h2>
+        <select onchange="selectPlaylist(this.value)" style="margin-bottom: 15px;">
+          <option value="">-- Choose a playlist --</option>
+          <option value="funk">🎸 Funk</option>
+          <option value="soul">🎤 Soul</option>
+          <option value="hiphop">🎤 HipHop</option>
+          <option value="hardrock">🤘 Hard Rock</option>
+          <option value="gothic">🖤 Gothic Funk</option>
+          <option value="all">🎵 All Music</option>
+        </select>
+        
+        <h3 style="margin-top: 20px; color: #667eea;">Available Categories</h3>
+        <div class="playlist-list" id="playlistContainer">
+          <div class="playlist-item">Loading playlists...</div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status" id="statusMsg">✓ Connected to Liquidsoap</div>
+    </div>
+  </div>
+
+  <script>
+    let currentVolume = 70;
+    let isPlaying = false;
+
+    function playPause() {
+      isPlaying = !isPlaying;
+      updateStatus(isPlaying ? 'Playing...' : 'Paused', 'success');
+    }
+
+    function nextTrack() {
+      updateStatus('Skipped to next track', 'success');
+      document.getElementById('trackTitle').textContent = 'Loading next track...';
+    }
+
+    function prevTrack() {
+      updateStatus('Playing previous track', 'success');
+    }
+
+    function stopStream() {
+      isPlaying = false;
+      updateStatus('Stream stopped', 'info');
+      document.getElementById('trackTitle').textContent = 'Stopped';
+    }
+
+    function setVolume(value) {
+      currentVolume = value;
+      document.getElementById('volumeDisplay').textContent = value + '%';
+    }
+
+    function selectPlaylist(playlist) {
+      if (playlist) {
+        updateStatus('Playlist: ' + playlist + ' selected', 'success');
+        document.getElementById('trackTitle').textContent = playlist.toUpperCase() + ' Playlist';
+      }
+    }
+
+    function updateStatus(msg, type) {
+      const statusEl = document.getElementById('statusMsg');
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + type;
+    }
+
+    function loadPlaylists() {
+      const playlists = ['Funk', 'Soul', 'HipHop', 'HardRock', 'Gothic Funk', 'Collections', 'Events', 'Specials'];
+      const container = document.getElementById('playlistContainer');
+      container.innerHTML = '';
+      
+      playlists.forEach(playlist => {
+        const item = document.createElement('div');
+        item.className = 'playlist-item';
+        item.textContent = '📁 ' + playlist;
+        item.onclick = () => selectPlaylist(playlist);
+        container.appendChild(item);
+      });
+    }
+
+    // Initialize
+    document.getElementById('trackTitle').textContent = 'AI Radio Stream';
+    document.getElementById('trackArtist').textContent = 'Now playing your favorite music';
+    loadPlaylists();
+  </script>
+</body>
+</html>

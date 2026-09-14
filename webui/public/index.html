@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎵 AI Radio Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+    .header p { font-size: 0.95em; opacity: 0.9; }
+    .content { padding: 30px; }
+    .section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 10px;
+    }
+    .section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.3em;
+    }
+    .now-playing {
+      background: white;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 5px;
+    }
+    .track-title { font-size: 1.3em; color: #333; font-weight: bold; }
+    .track-artist { color: #999; font-size: 0.95em; margin-top: 5px; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1em;
+      font-weight: 600;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    button:hover {
+      background: #764ba2;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    button:active { transform: translateY(0); }
+    .btn-skip { background: #ff6b6b; }
+    .btn-skip:hover { background: #ff5252; }
+    .btn-secondary { background: #51cf66; }
+    .btn-secondary:hover { background: #40c057; }
+    .stream-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 15px 0;
+    }
+    .info-box {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .info-label { color: #999; font-size: 0.9em; }
+    .info-value { color: #333; font-weight: bold; font-size: 1.1em; margin-top: 5px; }
+    select, input {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1em;
+      width: 100%;
+      max-width: 300px;
+    }
+    .playlist-list {
+      background: white;
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+    }
+    .playlist-item {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .playlist-item:hover { background: #f8f9fa; }
+    .playlist-item:last-child { border-bottom: none; }
+    .status {
+      text-align: center;
+      padding: 15px;
+      background: #d4edda;
+      color: #155724;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 300px;
+    }
+    input[type="range"] { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎵 AI Radio Dashboard</h1>
+      <p>Your AI-powered streaming station</p>
+    </div>
+    
+    <div class="content">
+      <!-- Now Playing -->
+      <div class="section">
+        <h2>Now Playing</h2>
+        <div class="now-playing">
+          <div class="track-title" id="trackTitle">Loading...</div>
+          <div class="track-artist" id="trackArtist">Waiting for stream</div>
+        </div>
+      </div>
+
+      <!-- Stream Info -->
+      <div class="section">
+        <h2>Stream Information</h2>
+        <div class="stream-info">
+          <div class="info-box">
+            <div class="info-label">Stream URL</div>
+            <div class="info-value">192.168.2.5:8030/live</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Format</div>
+            <div class="info-value">MP3 128kbps</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Status</div>
+            <div class="info-value" id="streamStatus">🟢 LIVE</div>
+          </div>
+          <div class="info-box">
+            <div class="info-label">Listeners</div>
+            <div class="info-value" id="listenerCount">Connected</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player Controls -->
+      <div class="section">
+        <h2>Player Controls</h2>
+        <div class="controls">
+          <button onclick="playStream()" class="btn-secondary">▶️ Play</button>
+          <button onclick="stopStream()" class="btn-skip">⏹️ Stop playing</button>
+          <button onclick="refreshStatus()">🔄 Refresh status</button>
+          <button onclick="nextTrack()" class="btn-skip">⏭️ Next Track</button>
+        </div>
+      </div>
+
+      <!-- Playlist Selection -->
+      <div class="section">
+        <h2>Select Playlist</h2>
+        <select id="playlistSelect" onchange="selectPlaylist(this.value)" style="margin-bottom: 15px;">
+          <option value="">-- Choose a playlist --</option>
+          <option value="funk">🎸 Funk</option>
+          <option value="soul">🎤 Soul</option>
+          <option value="hiphop">🎤 HipHop</option>
+          <option value="hardrock">🤘 Hard Rock</option>
+          <option value="gothic">🖤 Gothic Funk</option>
+          <option value="all">🎵 All Music</option>
+        </select>
+        
+        <h3 style="margin-top: 20px; color: #667eea;">Available Categories</h3>
+        <div class="playlist-list" id="playlistContainer">
+          <div class="playlist-item">Loading playlists...</div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="status" id="statusMsg">✓ Connected to Liquidsoap</div>
+    </div>
+  </div>
+
+  <script>
+    let streamStarting = false;
+
+    function parseMetadata(metadata) {
+      const currentTrack = metadata
+        .replace(/^--- \d+ ---\r?\n/, '')
+        .split(/\r?\n--- \d+ ---\r?\n/)[0];
+      const values = Object.fromEntries(
+        currentTrack.split('\n')
+          .map(line => line.match(/^([^=]+)="(.*)"$/))
+          .filter(Boolean)
+          .map(([, key, value]) => [key, value])
+      );
+
+      return {
+        title: values.title || 'AI Radio Stream',
+        artist: values.artist || values.album || 'Unknown artist'
+      };
+    }
+
+    function parseIcecastTitle(title) {
+      const [artist, ...titleParts] = title.split(' - ');
+      return {
+        artist: titleParts.length ? artist : 'Unknown artist',
+        title: titleParts.length ? titleParts.join(' - ') : title
+      };
+    }
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/api/status', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Status unavailable');
+        const data = await response.json();
+        if (data.status === 'stopped') {
+          document.getElementById('trackTitle').textContent = 'Radio stream stopped';
+          document.getElementById('trackArtist').textContent = '';
+          document.getElementById('streamStatus').textContent = '🔴 STOPPED';
+          if (streamStarting) {
+            updateStatus('Starting radio stream for all listeners...', 'success');
+          } else {
+            updateStatus('Radio stream is stopped', 'error');
+          }
+          return false;
+        }
+
+        const track = parseIcecastTitle(data.title);
+        document.getElementById('trackTitle').textContent = track.title;
+        document.getElementById('trackArtist').textContent = track.artist;
+        document.getElementById('streamStatus').textContent = '🟢 LIVE';
+        document.getElementById('listenerCount').textContent = data.listeners;
+        updateStatus('✓ Connected to Icecast', 'success');
+        return true;
+      } catch (error) {
+        console.error('Error loading status:', error);
+        document.getElementById('streamStatus').textContent = '🔴 OFFLINE';
+        updateStatus(
+          streamStarting ? 'Waiting for radio stream to start...' : 'Connection error',
+          streamStarting ? 'success' : 'error'
+        );
+        return false;
+      }
+    }
+
+    async function nextTrack() {
+      try {
+        updateStatus('Skipping to the next track...', 'success');
+        const response = await fetch('/api/next', { method: 'POST' });
+        if (!response.ok) throw new Error('Could not skip track');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await refreshStatus();
+      } catch (error) {
+        console.error('Error skipping track:', error);
+        updateStatus('Could not skip track', 'error');
+      }
+    }
+
+    async function playStream() {
+      try {
+        const response = await fetch('/api/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ running: true })
+        });
+        if (!response.ok) throw new Error('Could not start the radio stream');
+        streamStarting = true;
+        updateStatus('Starting radio stream for all listeners...', 'success');
+        const deadline = Date.now() + 120000;
+        while (Date.now() < deadline) {
+          if (await refreshStatus()) {
+            streamStarting = false;
+            updateStatus('Radio stream started for all listeners', 'success');
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+        streamStarting = false;
+        updateStatus('Radio stream did not start within two minutes', 'error');
+      } catch (error) {
+        streamStarting = false;
+        console.error('Error starting stream:', error);
+        updateStatus('Could not start the radio stream', 'error');
+      }
+    }
+
+    async function stopStream() {
+      try {
+        const response = await fetch('/api/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ running: false })
+        });
+        if (!response.ok) throw new Error('Could not stop the radio stream');
+        streamStarting = false;
+        updateStatus('Radio stream stopped for all listeners', 'success');
+      } catch (error) {
+        console.error('Error stopping stream:', error);
+        updateStatus('Could not stop the radio stream', 'error');
+      }
+    }
+
+    async function selectPlaylist(playlist) {
+      if (!playlist) return;
+
+      try {
+        updateStatus('Switching to ' + playlist + '...', 'success');
+        const response = await fetch('/api/playlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playlist })
+        });
+        if (!response.ok) throw new Error('Could not change playlist');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await refreshStatus();
+        document.getElementById('playlistSelect').value = playlist;
+        updateStatus('Now playing: ' + playlist, 'success');
+      } catch (error) {
+        console.error('Error selecting playlist:', error);
+        updateStatus('Could not change playlist', 'error');
+      }
+    }
+
+    function updateStatus(msg, type) {
+      const statusEl = document.getElementById('statusMsg');
+      statusEl.textContent = msg;
+      statusEl.className = 'status ' + type;
+    }
+
+    function loadPlaylists() {
+      const playlists = [
+        ['funk', 'Funk'],
+        ['soul', 'Soul'],
+        ['hiphop', 'HipHop'],
+        ['hardrock', 'HardRock'],
+        ['gothic', 'Gothic Funk'],
+        ['all', 'All Music']
+      ];
+      const container = document.getElementById('playlistContainer');
+      container.innerHTML = '';
+      
+      playlists.forEach(([value, label]) => {
+        const item = document.createElement('div');
+        item.className = 'playlist-item';
+        item.textContent = '📁 ' + label;
+        item.onclick = () => selectPlaylist(value);
+        container.appendChild(item);
+      });
+    }
+
+    loadPlaylists();
+    refreshStatus();
+    setInterval(refreshStatus, 30000);
+  </script>
+</body>
+</html>

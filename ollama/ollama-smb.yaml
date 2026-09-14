@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: airadio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        env:
+        - name: OLLAMA_MODELS
+          value: /ollama/models
+        - name: NAS_SMB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: radio-music-smb
+              key: username
+        - name: NAS_SMB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: radio-music-smb
+              key: password
+        command:
+        - /bin/sh
+        - -ec
+        - |
+          cleanup() {
+            rm -f /run/ollama-smb-credentials
+          }
+          trap cleanup EXIT
+
+          if command -v apt-get >/dev/null; then
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cifs-utils
+          elif command -v apk >/dev/null; then
+            apk add --no-cache cifs-utils
+          else
+            echo "No supported package manager found for cifs-utils." >&2
+            exit 1
+          fi
+
+          umask 077
+          printf 'username=%s\npassword=%s\n' \
+            "$NAS_SMB_USERNAME" \
+            "$NAS_SMB_PASSWORD" > /run/ollama-smb-credentials
+          mkdir -p /ollama
+          mount -t cifs //192.168.2.5/docker /ollama \
+            -o credentials=/run/ollama-smb-credentials,vers=3.0,uid=0,gid=0,file_mode=0700,dir_mode=0700
+          mkdir -p "$OLLAMA_MODELS"
+          cleanup
+          trap - EXIT
+          exec ollama serve
+        ports:
+        - containerPort: 11434
+          name: http
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        startupProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          periodSeconds: 5
+          failureThreshold: 36
+        readinessProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/tags
+            port: http
+          periodSeconds: 30
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: airadio
+spec:
+  selector:
+    app: ollama
+  ports:
+  - name: http
+    port: 11434
+    targetPort: http

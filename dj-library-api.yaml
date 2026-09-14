@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dj-library-data
+  namespace: airadio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dj-library-music
+  namespace: airadio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dj-library-playlists
+  namespace: airadio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dj-library-api
+  namespace: airadio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dj-library-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dj-library-api
+    spec:
+      containers:
+        - name: api
+          image: dj-library-api:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              value: file:/app/data/dev.db
+            - name: MUSIC_ROOT
+              value: /music
+            - name: MUSIC_PATH
+              value: /music/
+            - name: MUSIC_PATH_PREFIX
+              value: /music/
+            - name: PLAYLIST_ROOT
+              value: /playlists
+            - name: PLAYLIST_SOURCE_PREFIX
+              value: //stream-vught-nl/Dj/Music/
+            - name: MIXXX_MUSIC_PATH
+              value: //stream-vught-nl/Dj/Music/
+            - name: API_BASE_URL
+              value: http://localhost:30080
+            - name: CORS_ORIGIN
+              value: http://localhost:30080
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "3000"
+            - name: LOG_LEVEL
+              value: info
+            - name: SEED_DATABASE
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+            - name: music
+              mountPath: /music
+              readOnly: true
+            - name: playlists
+              mountPath: /playlists
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dj-library-data
+        - name: music
+          persistentVolumeClaim:
+            claimName: dj-library-music
+        - name: playlists
+          persistentVolumeClaim:
+            claimName: dj-library-playlists
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dj-library-api
+  namespace: airadio
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dj-library-api
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

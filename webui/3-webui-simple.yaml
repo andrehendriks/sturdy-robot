@@ -1,0 +1,86 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webui
+  namespace: airadio
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 3000
+    nodePort: 30080
+  selector:
+    app: webui
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webui
+  namespace: airadio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webui
+  template:
+    metadata:
+      labels:
+        app: webui
+    spec:
+      containers:
+      - name: webui
+        image: node:18-alpine
+        workingDir: /app
+        command:
+        - sh
+        - -c
+        - |
+          cat > /app/server.js << 'EOF'
+          const express = require('express');
+          const path = require('path');
+          const app = express();
+          const PORT = 3000;
+          
+          app.use(express.static('public'));
+          app.use(express.json());
+          
+          app.get('/api/status', (req, res) => {
+            res.json({ status: 'ok', stream: 'playing' });
+          });
+          
+          app.post('/api/next', (req, res) => {
+            res.json({ status: 'skipped' });
+          });
+          
+          app.get('/api/files', (req, res) => {
+            res.json({ files: ['Funk', 'Soul', 'HipHop', 'HardRock', 'Gothic Funk'] });
+          });
+          
+          app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Web UI running on port ${PORT}`);
+          });
+          EOF
+          
+          cat > /app/package.json << 'EOF'
+          {"name":"airadio-webui","version":"1.0.0","dependencies":{"express":"^4.18.2"},"scripts":{"start":"node server.js"}}
+          EOF
+          
+          mkdir -p public
+          cat > /app/public/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>AI Radio</title><style>body{font-family:Arial;background:#667eea;min-height:100vh;display:flex;justify-content:center;align-items:center}
+          .container{background:white;border-radius:20px;padding:40px;max-width:600px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+          h1{color:#667eea;text-align:center}button{background:#667eea;color:white;border:none;padding:12px 24px;border-radius:10px;cursor:pointer;font-size:1em;margin:10px}
+          .info{background:#f8f9fa;padding:20px;border-radius:10px;margin:20px 0}.stream-url{color:#333;font-weight:bold}</style></head>
+          <body><div class="container"><h1>🎵 AI Radio</h1>
+          <div class="info"><p><strong>Stream URL:</strong> <span class="stream-url">192.168.2.5:8030/live</span></p>
+          <p><strong>Format:</strong> MP3 128kbps</p><p><strong>Status:</strong> ✓ Live</p></div>
+          <center><button onclick="alert('Next track')">⏭️ Next Track</button></center>
+          </div></body></html>
+          EOF
+          
+          npm install && npm start
+        ports:
+        - containerPort: 3000
