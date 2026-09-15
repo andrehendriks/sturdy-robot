@@ -99,6 +99,15 @@ The active WebUI source is in `webui/`.
 After changing WebUI source, rebuild and import `airadio-webui:local` on all
 Docker Desktop nodes before restarting `webui`.
 
+## DJ Library music
+
+The DJ Library reads its music directly from the NAS through the SMB CSI driver,
+using the `dj-library-music-pv` PersistentVolume. It mounts the `Music`
+subdirectory of `//192.168.2.5/Dj` read-only at `/music`; do not replace it
+with a local Kubernetes PVC. The SMB credentials remain in
+`airadio/radio-music-smb` and must only be referenced through
+`nodeStageSecretRef`.
+
 ## Ollama
 
 Ollama runs as `airadio/ollama` and is available only inside Kubernetes at:
