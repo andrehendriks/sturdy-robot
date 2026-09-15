@@ -74,8 +74,6 @@ The active manifest is `2.yaml`.
   causes audible gaps while Liquidsoap attempts to decode them. Do **not**
   replace the source with `blank()` or an `emptyDir` placeholder. A blank
   source starts a mount with no title and makes the WebUI wait two minutes.
-  Keep the 45-second `buffer` around this source so brief NAS/SMB read delays
-  do not interrupt the `/live` stream.
 
 - `/dj-sl` reads the direct Mixxx mount at `http://192.168.2.5:8030/Dj` and
   re-publishes it as MP3 to the NAS.
