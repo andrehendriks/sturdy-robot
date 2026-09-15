@@ -32,6 +32,7 @@ data:
         "/radio/music/Music"
       )
     )
+    music = buffer(max=45., music_source)
     
     # Output music to Icecast at /live mount
     output.icecast(
@@ -45,7 +46,7 @@ data:
       description = "AI-powered radio stream",
       genre = "Funk; Blues; Classic-Rock; Hip hop; HardStyle;",
       url = "http://77.171.138.127:8030/live",
-      music_source
+      music
     )
     
     # DJ relay from Mixxx source at http://192.168.2.5:8030/Dj
