@@ -32,7 +32,7 @@ data:
         "/radio/music/Music"
       )
     )
-    music = buffer(max=45., music_source)
+    music = mksafe(buffer(max=45., music_source))
     
     # Output music to Icecast at /live mount
     output.icecast(
