@@ -75,6 +75,12 @@
       box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
     }
     button:active { transform: translateY(0); }
+    button:disabled, select:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+      box-shadow: none;
+    }
     .btn-skip { background: #ff6b6b; }
     .btn-skip:hover { background: #ff5252; }
     .btn-secondary { background: #51cf66; }
@@ -107,6 +113,10 @@
       max-height: 300px;
       overflow-y: auto;
       border: 1px solid #ddd;
+    }
+    .playlist-list.disabled {
+      opacity: 0.55;
+      pointer-events: none;
     }
     .playlist-item {
       padding: 10px 15px;
@@ -161,7 +171,7 @@
         <div class="stream-info">
           <div class="info-box">
             <div class="info-label">Stream URL</div>
-            <div class="info-value">192.168.2.5:8030/live</div>
+            <div class="info-value"><a href="http://nas.stream-vught.eu:8030/live">nas.stream-vught.eu:8030/live</a></div>
           </div>
           <div class="info-box">
             <div class="info-label">Format</div>
@@ -182,17 +192,17 @@
       <div class="section">
         <h2>Player Controls</h2>
         <div class="controls">
-          <button onclick="playStream()" class="btn-secondary">▶️ Play</button>
-          <button onclick="stopStream()" class="btn-skip">⏹️ Stop playing</button>
+          <button data-requires-control onclick="playStream()" class="btn-secondary">▶️ Play</button>
+          <button data-requires-control onclick="stopStream()" class="btn-skip">⏹️ Stop playing</button>
           <button onclick="refreshStatus()">🔄 Refresh status</button>
-          <button onclick="nextTrack()" class="btn-skip">⏭️ Next Track</button>
+          <button data-requires-control onclick="nextTrack()" class="btn-skip">⏭️ Next Track</button>
         </div>
       </div>
 
       <!-- Playlist Selection -->
       <div class="section">
         <h2>Select Playlist</h2>
-        <select id="playlistSelect" onchange="selectPlaylist(this.value)" style="margin-bottom: 15px;">
+        <select data-requires-control id="playlistSelect" onchange="selectPlaylist(this.value)" style="margin-bottom: 15px;">
           <option value="">-- Choose a playlist --</option>
           <option value="funk">🎸 Funk</option>
           <option value="soul">🎤 Soul</option>
@@ -215,6 +225,7 @@
 
   <script>
     let streamStarting = false;
+    let controlsAvailable = true;
 
     function parseMetadata(metadata) {
       const currentTrack = metadata
@@ -258,7 +269,7 @@
           return false;
         }
 
-        const track = parseIcecastTitle(data.title);
+        const track = parseIcecastTitle(data.title || 'AI Radio Stream');
         document.getElementById('trackTitle').textContent = track.title;
         document.getElementById('trackArtist').textContent = track.artist;
         document.getElementById('streamStatus').textContent = '🟢 LIVE';
@@ -376,12 +387,33 @@
         const item = document.createElement('div');
         item.className = 'playlist-item';
         item.textContent = '📁 ' + label;
-        item.onclick = () => selectPlaylist(value);
+        if (controlsAvailable) item.onclick = () => selectPlaylist(value);
         container.appendChild(item);
       });
     }
 
-    loadPlaylists();
+    async function loadCapabilities() {
+      try {
+        const response = await fetch('/api/capabilities', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Capabilities unavailable');
+        const capabilities = await response.json();
+        controlsAvailable = capabilities.controlsAvailable;
+        if (!controlsAvailable) {
+          document.querySelectorAll('[data-requires-control]').forEach((element) => {
+            element.disabled = true;
+            element.title = 'Unavailable in Synology standalone mode';
+          });
+          document.getElementById('playlistContainer').classList.add('disabled');
+          updateStatus('Synology standalone mode: stream controls and music files are unavailable.', 'error');
+        }
+      } catch (error) {
+        console.error('Error loading capabilities:', error);
+        updateStatus('Could not load dashboard capabilities', 'error');
+      }
+      loadPlaylists();
+    }
+
+    loadCapabilities();
     refreshStatus();
     setInterval(refreshStatus, 30000);
   </script>
