@@ -98,9 +98,9 @@ spec:
             - name: MIXXX_MUSIC_PATH
               value: //stream-vught-nl/Dj/Music/
             - name: API_BASE_URL
-              value: http://localhost:30080
+              value: http://localhost:8080
             - name: CORS_ORIGIN
-              value: http://localhost:30080
+              value: http://localhost:8080
             - name: HOST
               value: 0.0.0.0
             - name: PORT
