@@ -6,6 +6,8 @@ const net = require('net');
 
 const app = express();
 const PORT = 3000;
+const WEBUI_MODE = process.env.WEBUI_MODE || 'kubernetes';
+const IS_SYNOLOGY_STANDALONE = WEBUI_MODE === 'synology';
 
 // Liquidsoap telnet connection settings
 const LIQUIDSOAP_HOST = 'liquidsoap.airadio.svc.cluster.local';
@@ -21,8 +23,15 @@ const PLAYLISTS = {
 const KUBERNETES_NAMESPACE = 'airadio';
 const KUBERNETES_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token';
 const KUBERNETES_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
-const ICECAST_HOST = '192.168.2.5';
-const ICECAST_PORT = 8030;
+const ICECAST_HOST = process.env.ICECAST_HOST || '192.168.2.5';
+const ICECAST_PORT = Number(process.env.ICECAST_PORT || 8030);
+
+function sendStandaloneUnavailable(res, capability) {
+  res.status(503).json({
+    error: `${capability} is unavailable in Synology standalone mode`,
+    code: 'STANDALONE_UNAVAILABLE'
+  });
+}
 
 function sendCommand(cmd) {
   return new Promise((resolve, reject) => {
@@ -139,6 +148,14 @@ app.use((req, res, next) => {
 app.use(express.static('public'));
 app.use(express.json());
 
+app.get('/api/capabilities', (req, res) => {
+  res.json({
+    mode: WEBUI_MODE,
+    controlsAvailable: !IS_SYNOLOGY_STANDALONE,
+    musicFilesAvailable: !IS_SYNOLOGY_STANDALONE
+  });
+});
+
 // Get current status
 app.get('/api/status', async (req, res) => {
   try {
@@ -161,6 +178,11 @@ app.get('/api/status', async (req, res) => {
 
 // Next track
 app.post('/api/next', async (req, res) => {
+  if (IS_SYNOLOGY_STANDALONE) {
+    sendStandaloneUnavailable(res, 'Liquidsoap controls');
+    return;
+  }
+
   try {
     await sendCommand('Music.skip');
     res.json({ status: 'skipped' });
@@ -170,6 +192,11 @@ app.post('/api/next', async (req, res) => {
 });
 
 app.post('/api/playlist', async (req, res) => {
+  if (IS_SYNOLOGY_STANDALONE) {
+    sendStandaloneUnavailable(res, 'Playlist selection');
+    return;
+  }
+
   const musicPath = PLAYLISTS[req.body.playlist];
   if (!musicPath) {
     res.status(400).json({ error: 'Unknown playlist' });
@@ -191,6 +218,11 @@ app.post('/api/playlist', async (req, res) => {
 });
 
 app.post('/api/stream', async (req, res) => {
+  if (IS_SYNOLOGY_STANDALONE) {
+    sendStandaloneUnavailable(res, 'Kubernetes stream scaling');
+    return;
+  }
+
   if (typeof req.body.running !== 'boolean') {
     res.status(400).json({ error: 'running must be a boolean' });
     return;
@@ -206,7 +238,11 @@ app.post('/api/stream', async (req, res) => {
 
 // List files in music directory
 app.get('/api/files', (req, res) => {
-  const fs = require('fs');
+  if (IS_SYNOLOGY_STANDALONE) {
+    sendStandaloneUnavailable(res, 'Music file access');
+    return;
+  }
+
   try {
     const musicDir = '/radio/music/Music';
     const files = fs.readdirSync(musicDir);
@@ -217,5 +253,5 @@ app.get('/api/files', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Web UI running on port ${PORT}`);
+  console.log(`Web UI running on port ${PORT} in ${WEBUI_MODE} mode`);
 });

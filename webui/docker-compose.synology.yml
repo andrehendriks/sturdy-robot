@@ -1,0 +1,14 @@
+services:
+  webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: airadio-webui:synology
+    container_name: airadio-webui
+    environment:
+      WEBUI_MODE: synology
+      ICECAST_HOST: 192.168.2.5
+      ICECAST_PORT: "8030"
+    ports:
+      - "8081:3000"
+    restart: unless-stopped
