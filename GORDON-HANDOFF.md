@@ -96,8 +96,9 @@ The active WebUI source is in `webui/`.
 - Play and Stop intentionally scale only `airadio/liquidsoap`; do not widen
   its Kubernetes RBAC permissions.
 
-After changing WebUI source, rebuild and import `airadio-webui:local` on all
-Docker Desktop nodes before restarting `webui`.
+For Kubernetes production publishing and immutable deployment instructions,
+see `webui/README.production.md`. The legacy `airadio-webui:local` image is
+only appropriate for the local Docker Desktop manifest.
 
 ## DJ Library music
 
