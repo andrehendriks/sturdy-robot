@@ -55,6 +55,11 @@ cluster dependencies. The status endpoint matches an Icecast source by its
 `mount` field or the URL pathname in `listenurl`, so an external source host
 such as `nas.stream-vught.eu` does not affect running-state detection.
 
+Supported playlist selections are Funk, Gothic Funk, HardRock, Hardstyle,
+HipHop, Soul, and All Music (the `all` selection targets `Music/Various`).
+Each selection waits for Liquidsoap to return `OK`, verifies the active path,
+and skips within a single in-process serialized operation.
+
 ## One-time GHCR operator step
 
 After the first publish, open the `airadio-webui` package in the
