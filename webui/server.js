@@ -12,7 +12,7 @@ const IS_SYNOLOGY_STANDALONE = WEBUI_MODE === 'synology';
 const LIQUIDSOAP_HOST = process.env.LIQUIDSOAP_HOST || 'liquidsoap.airadio.svc.cluster.local';
 const LIQUIDSOAP_PORT = parsePort(process.env.LIQUIDSOAP_PORT, 1234, 'LIQUIDSOAP_PORT');
 const PLAYLISTS = {
-  all: '/radio/music/Music',
+  all: '/radio/music/Music/Various',
   funk: '/radio/music/Music/Funk',
   soul: '/radio/music/Music/Soul',
   hiphop: '/radio/music/Music/HipHop',
@@ -27,6 +27,7 @@ const KUBERNETES_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 const ICECAST_HOST = process.env.ICECAST_HOST || 'icecast.airadio.svc.cluster.local';
 const ICECAST_PORT = parsePort(process.env.ICECAST_PORT, 8030, 'ICECAST_PORT');
 const ICECAST_MOUNT = normalizeMount(process.env.ICECAST_MOUNT || '/stream.mp3');
+let playlistSelectionQueue = Promise.resolve();
 
 function parsePort(value, fallback, name) {
   if (value === undefined || value === '') {
@@ -107,21 +108,17 @@ function sendCommand(cmd) {
   });
 }
 
-function setPlaylist(uri) {
-  return new Promise((resolve, reject) => {
-    const liquidsoap = net.createConnection(LIQUIDSOAP_PORT, LIQUIDSOAP_HOST);
+async function setPlaylist(uri) {
+  const response = await sendCommand(`Music.uri ${uri}`);
+  if (response !== 'OK') {
+    throw new Error(`Liquidsoap did not confirm playlist change: ${response || 'empty response'}`);
+  }
+}
 
-    liquidsoap.setTimeout(5000);
-    liquidsoap.on('connect', () => {
-      liquidsoap.write(`Music.uri ${uri}\n`);
-      setTimeout(() => {
-        liquidsoap.end();
-        resolve();
-      }, 250);
-    });
-    liquidsoap.on('timeout', () => liquidsoap.destroy(new Error('Playlist command timeout')));
-    liquidsoap.on('error', reject);
-  });
+function queuePlaylistSelection(operation) {
+  const result = playlistSelectionQueue.then(operation, operation);
+  playlistSelectionQueue = result.catch(() => {});
+  return result;
 }
 
 function setStreamRunning(running) {
@@ -262,13 +259,14 @@ app.post('/api/playlist', async (req, res) => {
   }
 
   try {
-    await setPlaylist(musicPath);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const activePlaylist = await sendCommand('Music.uri');
-    if (activePlaylist !== musicPath) {
-      throw new Error(`Liquidsoap selected ${activePlaylist}, expected ${musicPath}`);
-    }
-    await sendCommand('Music.skip');
+    await queuePlaylistSelection(async () => {
+      await setPlaylist(musicPath);
+      const activePlaylist = await sendCommand('Music.uri');
+      if (activePlaylist !== musicPath) {
+        throw new Error(`Liquidsoap selected ${activePlaylist}, expected ${musicPath}`);
+      }
+      await sendCommand('Music.skip');
+    });
     res.json({ status: 'selected', playlist: req.body.playlist });
   } catch (error) {
     res.status(500).json({ error: error.toString() });
