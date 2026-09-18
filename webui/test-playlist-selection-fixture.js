@@ -72,7 +72,7 @@ async function main() {
     let result;
     for (let attempt = 0; attempt < 50; attempt += 1) {
       try {
-        result = await selectPlaylist(webuiPort, 'funk');
+        result = await selectPlaylist(webuiPort, 'blues');
         break;
       } catch {
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -81,13 +81,13 @@ async function main() {
 
     assert.ok(result, 'WebUI did not start');
     assert.equal(result.statusCode, 200);
-    assert.deepEqual(JSON.parse(result.body), { status: 'selected', playlist: 'funk' });
+    assert.deepEqual(JSON.parse(result.body), { status: 'selected', playlist: 'blues' });
     assert.deepEqual(commands, [
-      'Music.uri /radio/playlist/funk.m3u8',
+      'Music.uri /radio/playlist/blues.m3u8',
       'Music.uri',
       'Music.skip'
     ]);
-    assert.equal(activePlaylist, '/radio/playlist/funk.m3u8');
+    assert.equal(activePlaylist, '/radio/playlist/blues.m3u8');
   } finally {
     webui.kill();
     await new Promise((resolve) => liquidsoap.close(resolve));

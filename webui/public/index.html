@@ -204,6 +204,7 @@
         <h2>Select Playlist</h2>
         <select data-requires-control id="playlistSelect" onchange="selectPlaylist(this.value)" style="margin-bottom: 15px;">
           <option value="">-- Choose a playlist --</option>
+          <option value="blues">🎵 Blues</option>
           <option value="funk">🎸 Funk</option>
           <option value="soul">🎤 Soul</option>
           <option value="hiphop">🎤 HipHop</option>
@@ -374,6 +375,7 @@
 
     function loadPlaylists() {
       const playlists = [
+        ['blues', 'Blues'],
         ['funk', 'Funk'],
         ['soul', 'Soul'],
         ['hiphop', 'HipHop'],
