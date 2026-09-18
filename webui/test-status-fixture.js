@@ -18,6 +18,16 @@ function request(port) {
   });
 }
 
+function getFreePort() {
+  return new Promise((resolve) => {
+    const server = http.createServer();
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 async function main() {
   const icecast = http.createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
@@ -26,7 +36,7 @@ async function main() {
 
   await new Promise((resolve) => icecast.listen(0, '127.0.0.1', resolve));
   const icecastPort = icecast.address().port;
-  const webuiPort = 13000;
+  const webuiPort = await getFreePort();
   const webui = spawn(process.execPath, ['server.js'], {
     env: {
       ...process.env,
