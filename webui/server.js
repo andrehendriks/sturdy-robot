@@ -17,6 +17,7 @@ const PLAYLISTS = {
   soul: '/radio/music/Music/Soul',
   hiphop: '/radio/music/Music/HipHop',
   hardrock: '/radio/music/Music/HardRock',
+  hardstyle: '/radio/music/Music/Hardstyle',
   gothic: '/radio/music/Music/Gothic Funk'
 };
 const KUBERNETES_NAMESPACE = process.env.KUBERNETES_NAMESPACE || 'airadio';
