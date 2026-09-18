@@ -9,6 +9,7 @@ services:
       WEBUI_MODE: synology
       ICECAST_HOST: 192.168.2.5
       ICECAST_PORT: "8030"
+      ICECAST_MOUNT: /stream.mp3
     ports:
       - "8081:3000"
     restart: unless-stopped

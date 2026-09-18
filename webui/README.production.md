@@ -42,6 +42,7 @@ Set these environment values in the deployment where the defaults differ:
 | --- | --- | --- |
 | `ICECAST_HOST` | `icecast.airadio.svc.cluster.local` | Icecast Service DNS name |
 | `ICECAST_PORT` | `8030` | Icecast HTTP status port |
+| `ICECAST_MOUNT` | `/stream.mp3` | Expected Icecast source mount; accepts `/stream.mp3` or `stream.mp3` |
 | `LIQUIDSOAP_HOST` | `liquidsoap.airadio.svc.cluster.local` | Liquidsoap telnet Service DNS name |
 | `LIQUIDSOAP_PORT` | `1234` | Liquidsoap telnet port |
 | `KUBERNETES_NAMESPACE` | `airadio` | Namespace containing Liquidsoap |
@@ -50,7 +51,9 @@ Set these environment values in the deployment where the defaults differ:
 
 The application uses `KUBERNETES_SERVICE_HOST`, the mounted ServiceAccount
 token, and its CA certificate automatically. It does not use `localhost` for
-cluster dependencies.
+cluster dependencies. The status endpoint matches an Icecast source by its
+`mount` field or the URL pathname in `listenurl`, so an external source host
+such as `nas.stream-vught.eu` does not affect running-state detection.
 
 ## One-time GHCR operator step
 
