@@ -16,13 +16,13 @@ const LIQUIDSOAP_COMMAND_TIMEOUT_MS = parseTimeout(
   30000
 );
 const PLAYLISTS = {
-  all: '/radio/music/Music/Various',
-  funk: '/radio/music/Music/Funk',
-  soul: '/radio/music/Music/Soul',
-  hiphop: '/radio/music/Music/HipHop',
-  hardrock: '/radio/music/Music/HardRock',
-  hardstyle: '/radio/music/Music/Hardstyle',
-  gothic: '/radio/music/Music/Gothic Funk'
+  all: '/radio/playlist/playlist.m3u8',
+  funk: '/radio/playlist/funk.m3u8',
+  soul: '/radio/playlist/soul.m3u8',
+  hiphop: '/radio/playlist/hiphop.m3u8',
+  hardrock: '/radio/playlist/hardrock.m3u8',
+  hardstyle: '/radio/playlist/hardstyle.m3u8',
+  gothic: '/radio/playlist/gothic.m3u8'
 };
 const KUBERNETES_NAMESPACE = process.env.KUBERNETES_NAMESPACE || 'airadio';
 const LIQUIDSOAP_DEPLOYMENT = process.env.LIQUIDSOAP_DEPLOYMENT || 'liquidsoap';
