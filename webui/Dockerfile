@@ -3,7 +3,8 @@ FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a55
 WORKDIR /app
 
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    LIQUIDSOAP_COMMAND_TIMEOUT_MS=30000
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts

@@ -11,6 +11,10 @@ const IS_SYNOLOGY_STANDALONE = WEBUI_MODE === 'synology';
 
 const LIQUIDSOAP_HOST = process.env.LIQUIDSOAP_HOST || 'liquidsoap.airadio.svc.cluster.local';
 const LIQUIDSOAP_PORT = parsePort(process.env.LIQUIDSOAP_PORT, 1234, 'LIQUIDSOAP_PORT');
+const LIQUIDSOAP_COMMAND_TIMEOUT_MS = parseTimeout(
+  process.env.LIQUIDSOAP_COMMAND_TIMEOUT_MS,
+  30000
+);
 const PLAYLISTS = {
   all: '/radio/music/Music/Various',
   funk: '/radio/music/Music/Funk',
@@ -40,6 +44,19 @@ function parsePort(value, fallback, name) {
   }
 
   return port;
+}
+
+function parseTimeout(value, fallback) {
+  if (value === undefined || value === '') {
+    return fallback;
+  }
+
+  const timeout = Number(value);
+  if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 120000) {
+    throw new Error('LIQUIDSOAP_COMMAND_TIMEOUT_MS must be an integer between 1000 and 120000');
+  }
+
+  return timeout;
 }
 
 function normalizeMount(value) {
@@ -89,7 +106,7 @@ function sendCommand(cmd) {
     const liquidsoap = net.createConnection(LIQUIDSOAP_PORT, LIQUIDSOAP_HOST);
     let response = '';
 
-    liquidsoap.setTimeout(5000);
+    liquidsoap.setTimeout(LIQUIDSOAP_COMMAND_TIMEOUT_MS);
     liquidsoap.on('connect', () => liquidsoap.write(`${cmd}\n`));
     liquidsoap.on('data', (data) => {
       response += data.toString();

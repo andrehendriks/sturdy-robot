@@ -10,6 +10,7 @@
     "start": "node server.js",
     "test:status": "node test-status-fixture.js",
     "test:playlists": "node test-playlists-fixture.js",
-    "test:playlist-selection": "node test-playlist-selection-fixture.js"
+    "test:playlist-selection": "node test-playlist-selection-fixture.js",
+    "test:liquidsoap-timeout": "node test-liquidsoap-timeout-fixture.js"
   }
 }

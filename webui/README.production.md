@@ -45,6 +45,7 @@ Set these environment values in the deployment where the defaults differ:
 | `ICECAST_MOUNT` | `/stream.mp3` | Expected Icecast source mount; accepts `/stream.mp3` or `stream.mp3` |
 | `LIQUIDSOAP_HOST` | `liquidsoap.airadio.svc.cluster.local` | Liquidsoap telnet Service DNS name |
 | `LIQUIDSOAP_PORT` | `1234` | Liquidsoap telnet port |
+| `LIQUIDSOAP_COMMAND_TIMEOUT_MS` | `30000` | Per-command timeout; must be 1000–120000 ms |
 | `KUBERNETES_NAMESPACE` | `airadio` | Namespace containing Liquidsoap |
 | `LIQUIDSOAP_DEPLOYMENT` | `liquidsoap` | Deployment scaled by the stream control |
 | `PORT` | `3000` | HTTP listen port |
@@ -59,6 +60,8 @@ Supported playlist selections are Funk, Gothic Funk, HardRock, Hardstyle,
 HipHop, Soul, and All Music (the `all` selection targets `Music/Various`).
 Each selection waits for Liquidsoap to return `OK`, verifies the active path,
 and skips within a single in-process serialized operation.
+The 30-second command timeout accommodates the bounded NFS playlist reload
+and Icecast reconnect sequence; increase it only up to the 120-second limit.
 
 ## One-time GHCR operator step
 
