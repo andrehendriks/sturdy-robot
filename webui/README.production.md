@@ -57,9 +57,26 @@ cluster dependencies. The status endpoint matches an Icecast source by its
 such as `nas.stream-vught.eu` does not affect running-state detection.
 
 Supported playlist selections are Funk, Gothic Funk, HardRock, Hardstyle,
-HipHop, Soul, and All Music (the `all` selection targets `Music/Various`).
-Each selection waits for Liquidsoap to return `OK`, verifies the active path,
-and skips within a single in-process serialized operation.
+HipHop, Soul, and All Music. Each selection is a generated UTF-8 M3U8 file under
+the shared `/radio/playlist` volume, not a directory under the read-only
+`/radio/music/Music` mount. The generator must make these valid files
+available to Liquidsoap before this WebUI image is rolled out:
+
+| Selection | Required M3U8 path |
+| --- | --- |
+| All Music | `/radio/playlist/playlist.m3u8` |
+| Funk | `/radio/playlist/funk.m3u8` |
+| Gothic Funk | `/radio/playlist/gothic.m3u8` |
+| HardRock | `/radio/playlist/hardrock.m3u8` |
+| Hardstyle | `/radio/playlist/hardstyle.m3u8` |
+| HipHop | `/radio/playlist/hiphop.m3u8` |
+| Soul | `/radio/playlist/soul.m3u8` |
+
+Liquidsoap must mount that volume at `/radio/playlist` and use the
+`Music` playlist source backed by `/radio/playlist/playlist.m3u8`; it
+switches categories through `Music.uri <required M3U8 path>`. Each selection
+waits for Liquidsoap to return `OK`, verifies the active path, and skips
+within a single in-process serialized operation.
 The 30-second command timeout accommodates the bounded NFS playlist reload
 and Icecast reconnect sequence; increase it only up to the 120-second limit.
 
