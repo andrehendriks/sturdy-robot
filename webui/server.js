@@ -5,13 +5,12 @@ const https = require('https');
 const net = require('net');
 
 const app = express();
-const PORT = 3000;
+const PORT = parsePort(process.env.PORT, 3000, 'PORT');
 const WEBUI_MODE = process.env.WEBUI_MODE || 'kubernetes';
 const IS_SYNOLOGY_STANDALONE = WEBUI_MODE === 'synology';
 
-// Liquidsoap telnet connection settings
-const LIQUIDSOAP_HOST = 'liquidsoap.airadio.svc.cluster.local';
-const LIQUIDSOAP_PORT = 1234;
+const LIQUIDSOAP_HOST = process.env.LIQUIDSOAP_HOST || 'liquidsoap.airadio.svc.cluster.local';
+const LIQUIDSOAP_PORT = parsePort(process.env.LIQUIDSOAP_PORT, 1234, 'LIQUIDSOAP_PORT');
 const PLAYLISTS = {
   all: '/radio/music/Music',
   funk: '/radio/music/Music/Funk',
@@ -20,11 +19,25 @@ const PLAYLISTS = {
   hardrock: '/radio/music/Music/HardRock',
   gothic: '/radio/music/Music/Gothic Funk'
 };
-const KUBERNETES_NAMESPACE = 'airadio';
+const KUBERNETES_NAMESPACE = process.env.KUBERNETES_NAMESPACE || 'airadio';
+const LIQUIDSOAP_DEPLOYMENT = process.env.LIQUIDSOAP_DEPLOYMENT || 'liquidsoap';
 const KUBERNETES_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token';
 const KUBERNETES_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
-const ICECAST_HOST = process.env.ICECAST_HOST || '192.168.2.5';
-const ICECAST_PORT = Number(process.env.ICECAST_PORT || 8030);
+const ICECAST_HOST = process.env.ICECAST_HOST || 'icecast.airadio.svc.cluster.local';
+const ICECAST_PORT = parsePort(process.env.ICECAST_PORT, 8030, 'ICECAST_PORT');
+
+function parsePort(value, fallback, name) {
+  if (value === undefined || value === '') {
+    return fallback;
+  }
+
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`${name} must be an integer between 1 and 65535`);
+  }
+
+  return port;
+}
 
 function sendStandaloneUnavailable(res, capability) {
   res.status(503).json({
@@ -76,17 +89,23 @@ function setPlaylist(uri) {
 
 function setStreamRunning(running) {
   return new Promise((resolve, reject) => {
+    const kubernetesHost = process.env.KUBERNETES_SERVICE_HOST;
+    if (!kubernetesHost) {
+      reject(new Error('KUBERNETES_SERVICE_HOST is not set; Kubernetes mode requires an in-cluster ServiceAccount'));
+      return;
+    }
+
     const body = JSON.stringify({ spec: { replicas: running ? 1 : 0 } });
     const request = https.request({
       ca: fs.readFileSync(KUBERNETES_CA_PATH),
       headers: {
-        Authorization: `Bearer ${fs.readFileSync(KUBERNETES_TOKEN_PATH, 'utf8')}`,
+        Authorization: `Bearer ${fs.readFileSync(KUBERNETES_TOKEN_PATH, 'utf8').trim()}`,
         'Content-Type': 'application/merge-patch+json',
         'Content-Length': Buffer.byteLength(body)
       },
-      host: process.env.KUBERNETES_SERVICE_HOST,
+      host: kubernetesHost,
       method: 'PATCH',
-      path: `/apis/apps/v1/namespaces/${KUBERNETES_NAMESPACE}/deployments/liquidsoap/scale`,
+      path: `/apis/apps/v1/namespaces/${KUBERNETES_NAMESPACE}/deployments/${LIQUIDSOAP_DEPLOYMENT}/scale`,
       port: process.env.KUBERNETES_SERVICE_PORT_HTTPS || 443
     }, (response) => {
       let responseBody = '';
@@ -147,6 +166,10 @@ app.use((req, res, next) => {
 });
 app.use(express.static('public'));
 app.use(express.json());
+
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 app.get('/api/capabilities', (req, res) => {
   res.json({
@@ -252,6 +275,6 @@ app.get('/api/files', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Web UI running on port ${PORT} in ${WEBUI_MODE} mode`);
 });
