@@ -3,7 +3,8 @@
 This Compose profile runs the existing AI Radio WebUI directly on the Synology
 NAS. It builds the existing `Dockerfile` locally and publishes the dashboard at
 <http://nas.stream-vught.eu:8081>. The status endpoint queries the NAS Icecast
-server at `192.168.2.5:8030/status-json.xsl`.
+server at `192.168.2.5:8030/status-json.xsl` and identifies the running source
+by the configured `/stream.mp3` mount, independent of its external listen URL.
 
 The container deliberately runs with `WEBUI_MODE=synology`. In this mode it
 does not connect to the Kubernetes API, use the Kubernetes service account,

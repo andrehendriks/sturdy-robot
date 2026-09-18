@@ -25,6 +25,7 @@ const KUBERNETES_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/tok
 const KUBERNETES_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
 const ICECAST_HOST = process.env.ICECAST_HOST || 'icecast.airadio.svc.cluster.local';
 const ICECAST_PORT = parsePort(process.env.ICECAST_PORT, 8030, 'ICECAST_PORT');
+const ICECAST_MOUNT = normalizeMount(process.env.ICECAST_MOUNT || '/stream.mp3');
 
 function parsePort(value, fallback, name) {
   if (value === undefined || value === '') {
@@ -37,6 +38,41 @@ function parsePort(value, fallback, name) {
   }
 
   return port;
+}
+
+function normalizeMount(value) {
+  const mount = value.trim();
+  if (!mount || mount.includes('?') || mount.includes('#') || !/^\/?[A-Za-z0-9._~!$&'()*+,;=:@%-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=:@%-]+)*$/.test(mount)) {
+    throw new Error('ICECAST_MOUNT must be a non-empty URL path without a query or fragment');
+  }
+
+  return mount.startsWith('/') ? mount : `/${mount}`;
+}
+
+function sourceMatchesMount(source) {
+  if (!source) {
+    return false;
+  }
+
+  if (typeof source.mount === 'string') {
+    try {
+      if (normalizeMount(source.mount) === ICECAST_MOUNT) {
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  if (typeof source.listenurl !== 'string') {
+    return false;
+  }
+
+  try {
+    return new URL(source.listenurl).pathname === ICECAST_MOUNT;
+  } catch {
+    return false;
+  }
 }
 
 function sendStandaloneUnavailable(res, capability) {
@@ -144,9 +180,7 @@ function getIcecastStatus() {
         try {
           const source = JSON.parse(responseBody).icestats.source;
           const sources = Array.isArray(source) ? source : [source];
-          resolve(sources.find((stream) =>
-            stream && stream.listenurl && stream.listenurl.endsWith('/live')
-          ));
+          resolve(sources.find(sourceMatchesMount));
         } catch (error) {
           reject(error);
         }
