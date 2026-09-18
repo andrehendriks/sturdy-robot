@@ -65,6 +65,7 @@ available to Liquidsoap before this WebUI image is rolled out:
 | Selection | Required M3U8 path |
 | --- | --- |
 | All Music | `/radio/playlist/playlist.m3u8` |
+| Blues | `/radio/playlist/blues.m3u8` |
 | Funk | `/radio/playlist/funk.m3u8` |
 | Gothic Funk | `/radio/playlist/gothic.m3u8` |
 | HardRock | `/radio/playlist/hardrock.m3u8` |

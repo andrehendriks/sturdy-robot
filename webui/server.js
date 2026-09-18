@@ -17,6 +17,7 @@ const LIQUIDSOAP_COMMAND_TIMEOUT_MS = parseTimeout(
 );
 const PLAYLISTS = {
   all: '/radio/playlist/playlist.m3u8',
+  blues: '/radio/playlist/blues.m3u8',
   funk: '/radio/playlist/funk.m3u8',
   soul: '/radio/playlist/soul.m3u8',
   hiphop: '/radio/playlist/hiphop.m3u8',
